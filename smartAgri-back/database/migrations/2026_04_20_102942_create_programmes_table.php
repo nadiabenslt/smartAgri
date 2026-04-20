@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('programmes', function (Blueprint $table) {
+            $table->id('idProgramme');
+            $table->integer('numJour');
+            $table->date('date');
+            $table->string('recommandation');
+            $table->unsignedBigInteger('planting_id');
+            $table->foreign('planting_id')->references('idPlanting')->on('plantings')->onDelete('cascade');
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('programmes');
+    }
+};
