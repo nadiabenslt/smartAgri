@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('programmes', function (Blueprint $table) {
-            $table->id('idProgramme');
-            $table->integer('numJour');
-            $table->date('date');
-            $table->string('recommandation');
-            $table->unsignedBigInteger('planting_id');
-            $table->foreign('planting_id')->references('idPlanting')->on('plantings')->onDelete('cascade');
-            $table->timestamps();
-        });
+        $table->id();
+        $table->morphs('programmable'); // adds programmable_id + programmable_type
+        $table->integer('day_number');
+        $table->date('date');
+        $table->json('recommendations');
+        $table->enum('status', ['pending', 'done', 'skipped'])->default('pending');
+        $table->timestamps();
+    });
     }
 
     /**

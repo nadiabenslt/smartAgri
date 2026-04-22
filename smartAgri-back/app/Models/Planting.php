@@ -6,34 +6,34 @@ use Illuminate\Database\Eloquent\Model;
 
 class Planting extends Model
 {
-    protected $primaryKey = 'idPlanting';
-
     protected $fillable = [
-        'soilType',
-        'surface',
-        'location',
-        'plante',
         'user_id',
-        'plante_id'
+        'surface_id',
+        'plante_id',
+        'quantity',
+        'start_date',
+        'end_date',
+        'status',
     ];
+
+    public function surface()
+    {
+        return $this->belongsTo(Surface::class);
+    }
+
+    public function plante()
+    {
+        return $this->belongsTo(Plante::class);
+    }
 
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-    public function planteModel()
-    {
-        return $this->belongsTo(Plante::class, 'plante_id', 'idPlante');
-    }
-
-    public function maladieAnalytics()
-    {
-        return $this->hasMany(MaladieAnalytic::class, 'planting_id', 'idPlanting');
-    }
-
+    // Polymorphic — get all programmes for this planting
     public function programmes()
     {
-        return $this->hasMany(Programme::class, 'planting_id', 'idPlanting');
+        return $this->morphMany(Programme::class, 'programmable');
     }
 }

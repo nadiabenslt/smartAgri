@@ -12,14 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('plantings', function (Blueprint $table) {
-            $table->id('idPlanting');
-            $table->string('soilType');
-            $table->string('surface');
-            $table->string('location');
-            $table->string('plante')->nullable();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->unsignedBigInteger('plante_id')->nullable();
-            $table->foreign('plante_id')->references('idPlante')->on('plantes')->onDelete('cascade');
+            $table->id();
+            $table->foreignId('surface_id')->constrained('surfaces')->onDelete('cascade');
+            $table->foreignId('plante_id')->constrained('plantes')->onDelete('cascade');
+            $table->integer('quantity');
+            $table->date('start_date');
+            $table->date('end_date')->nullable();
+            $table->enum('status', ['pending', 'active', 'completed', 'cancelled'])->default('pending');
             $table->timestamps();
         });
     }

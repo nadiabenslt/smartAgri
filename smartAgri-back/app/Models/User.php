@@ -31,9 +31,9 @@ class User extends Authenticatable
         ];
     }
 
-    public function plantings()
+    public function surfaces()
     {
-        return $this->hasMany(Planting::class);
+        return $this->hasMany(Surface::class);
     }
 
     public function notifications()

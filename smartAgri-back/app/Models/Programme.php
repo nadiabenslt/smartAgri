@@ -6,17 +6,23 @@ use Illuminate\Database\Eloquent\Model;
 
 class Programme extends Model
 {
-    protected $primaryKey = 'idProgramme';
-
     protected $fillable = [
-        'numJour',
+        'programmable_id',
+        'programmable_type',
+        'day_number',
         'date',
-        'recommandation',
-        'planting_id'
+        'recommendations',
+        'status',
     ];
 
-    public function planting()
+    protected $casts = [
+        'recommendations' => 'array',
+        'date'            => 'date',
+    ];
+
+    // Polymorphic relation
+    public function programmable()
     {
-        return $this->belongsTo(Planting::class, 'planting_id', 'idPlanting');
+        return $this->morphTo();
     }
 }

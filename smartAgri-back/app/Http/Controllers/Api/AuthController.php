@@ -52,7 +52,7 @@ class AuthController extends Controller
             'user' => $user,
             'access_token' => $token,
             'token_type' => 'Bearer',
-        ]);
+        ],201);
     }
 
     public function logout(Request $request)
