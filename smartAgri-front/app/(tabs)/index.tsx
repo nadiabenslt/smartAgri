@@ -4,8 +4,10 @@ import * as Location from 'expo-location';
 import api from '../../services/api';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [weatherData, setWeatherData] = useState<{
     temp: number;
     humidity: number;
@@ -212,7 +214,12 @@ export default function HomeScreen() {
               : 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
 
             return (
-              <View style={styles.plantCard} key={planting.id}>
+              <TouchableOpacity
+                key={planting.id}
+                style={styles.plantCard}
+                onPress={() => router.push(`/plant-detail?id=${planting.id}`)}
+                activeOpacity={0.88}
+              >
                 <Image source={{ uri: imageUrl }} style={styles.plantImage} />
                 <View style={styles.plantInfo}>
                   <View style={styles.plantTitleRow}>
@@ -233,11 +240,12 @@ export default function HomeScreen() {
                     <Text style={styles.harvestText}>{daysLeft} Days to Harvest</Text>
                   </View>
 
-                  <TouchableOpacity style={styles.irrigationButton}>
-                    <Text style={styles.irrigationText}>Next Irrigation: Tomorrow</Text>
-                  </TouchableOpacity>
+                  <View style={styles.irrigationButton}>
+                    <Ionicons name="chevron-forward-outline" size={14} color="#166534" />
+                    <Text style={styles.irrigationText}>View Programmes</Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })
         )}
@@ -465,6 +473,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
   irrigationText: {
     color: '#166534',
