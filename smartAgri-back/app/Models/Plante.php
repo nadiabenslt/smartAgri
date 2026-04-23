@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class Plante extends Model
 {
-    protected $primaryKey = 'idPlante';
-
     protected $fillable = [
         'name',
         'image',
@@ -16,6 +14,6 @@ class Plante extends Model
 
     public function plantings()
     {
-        return $this->hasMany(Planting::class, 'plante_id', 'idPlante');
+        return $this->hasMany(Planting::class, 'plante_id', 'id');
     }
 }
