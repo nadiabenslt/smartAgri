@@ -1,7 +1,7 @@
 <?php
-
+ 
 namespace App\Http\Controllers\Api;
-
+ 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Planting\PlantingRequest;
 use App\Models\Planting;
@@ -9,7 +9,7 @@ use App\Services\GroqService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
+ 
 class PlantingController extends Controller
 {
     /**
@@ -17,7 +17,7 @@ class PlantingController extends Controller
      * Keeping this small (10) forces Groq to generate EVERY day without skipping.
      */
     private const CHUNK_SIZE = 10;
-
+ 
     // GET /api/plantings
     public function index()
     {
@@ -26,10 +26,10 @@ class PlantingController extends Controller
             })
             ->with(['surface', 'plante'])
             ->get();
-
+ 
         return response()->json(['plantings' => $plantings]);
     }
-
+ 
     // POST /api/plantings
     public function store(PlantingRequest $request, GroqService $groqService)
     {
@@ -42,63 +42,63 @@ class PlantingController extends Controller
             'end_date'   => null,
             'status'     => $request->status ?? 'pending',
         ]);
-
+ 
         $planting->load(['surface', 'plante']);
-
+ 
         if (! $planting->plante) {
             $planting->delete();
             return response()->json([
                 'message' => 'Planting aborted: plante_id ' . $request->plante_id . ' was not found.',
             ], 422);
         }
-
+ 
         if (! $planting->surface) {
             $planting->delete();
             return response()->json([
                 'message' => 'Planting aborted: surface_id ' . $request->surface_id . ' was not found.',
             ], 422);
         }
-
+ 
         $programmesCreated   = [];
         $aiPredictedDuration = null;
         $aiPredictedEndDate  = null;
-
+ 
         try {
             $startDate    = Carbon::parse($planting->start_date);
             $plantName    = $planting->plante->name;
             $soilType     = $planting->surface->soil_type;
             $season       = $this->getSeason($startDate);
             $fallbackDays = $planting->plante->growth_duration ?? 30;
-
+ 
             // ── Step 2: Fetch OWM 5-day forecast ─────────────────────────────
             $weatherSummary = $this->getOWMForecast(
                 $request->input('lat'),
                 $request->input('lon')
             );
             $weatherForecast = $weatherSummary['forecast']; // indexed array of daily data
-
+ 
             // ── Step 3: Phase A — Ask AI for growth duration ONLY ────────────
             //    (Small, focused call so Groq doesn't get distracted by scheduling)
             $aiPredictedDuration = $this->predictGrowthDuration(
                 $groqService, $plantName, $soilType, $season,
                 $fallbackDays, $weatherSummary
             );
-
+ 
             $aiPredictedEndDate = $startDate->copy()->addDays($aiPredictedDuration)->toDateString();
-
+ 
             $planting->update(['end_date' => $aiPredictedEndDate]);
-
+ 
             // ── Step 4: Phase B — Generate programme in chunks of CHUNK_SIZE ─
             //    Chunking forces the AI to produce EVERY day, no skipping.
             $chunks = array_chunk(range(1, $aiPredictedDuration), self::CHUNK_SIZE);
-
+ 
             foreach ($chunks as $chunk) {
                 $fromDay = $chunk[0];
                 $toDay   = end($chunk);
-
+ 
                 // Build weather lines only for days in this chunk
                 $chunkWeather = $this->weatherLinesForRange($weatherForecast, $fromDay, $toDay, $startDate);
-
+ 
                 $days = $this->generateChunk(
                     $groqService,
                     $plantName,
@@ -108,7 +108,7 @@ class PlantingController extends Controller
                     $toDay,
                     $chunkWeather
                 );
-
+ 
                 foreach ($days as $day) {
                     if (
                         isset($day['day_number'], $day['recommendations'])
@@ -117,21 +117,23 @@ class PlantingController extends Controller
                         && (int) $day['day_number'] <= $toDay
                     ) {
                         $programmesCreated[] = $planting->programmes()->create([
-                            'day_number'      => $day['day_number'],
-                            'date'            => $startDate->copy()->addDays($day['day_number'] - 1)->toDateString(),
-                            'weather_summary' => $day['weather_summary'] ?? null,
-                            'recommendations' => $day['recommendations'],
-                            'status'          => 'pending',
+                            'programmable_id'   => $planting->id,
+                            'programmable_type' => \App\Models\Planting::class,
+                            'day_number'        => $day['day_number'],
+                            'date'              => $startDate->copy()->addDays($day['day_number'] - 1)->toDateString(),
+                            'weather_summary'   => $day['weather_summary'] ?? null,
+                            'recommendations'   => $day['recommendations'],
+                            'status'            => 'pending',
                         ]);
                     }
                 }
             }
-
+ 
         } catch (\Exception $e) {
             Log::error('Planting store error: ' . $e->getMessage());
             $this->fallbackEndDate($planting, $planting->plante->growth_duration ?? 30);
         }
-
+ 
         return response()->json([
             'message'               => 'Planting created successfully',
             'planting'              => $planting->fresh(['surface', 'plante']),
@@ -141,19 +143,21 @@ class PlantingController extends Controller
             'programme'             => $programmesCreated,
         ], 201);
     }
-
+ 
     // GET /api/plantings/{id}
     public function show($id)
     {
         $planting = Planting::whereHas('surface', function ($q) {
                 $q->where('user_id', auth()->id());
             })
-            ->with(['surface', 'plante', 'programmes'])
+            ->with(['surface', 'plante', 'programmes' => function ($q) {
+                $q->orderBy('day_number');
+            }])
             ->findOrFail($id);
-
+ 
         return response()->json(['planting' => $planting]);
     }
-
+ 
     // PUT /api/plantings/{id}
     public function update(PlantingRequest $request, $id)
     {
@@ -161,7 +165,7 @@ class PlantingController extends Controller
                 $q->where('user_id', auth()->id());
             })
             ->findOrFail($id);
-
+ 
         $planting->update([
             'surface_id' => $request->surface_id,
             'plante_id'  => $request->plante_id,
@@ -170,13 +174,13 @@ class PlantingController extends Controller
             'end_date'   => $request->end_date ?? $planting->end_date,
             'status'     => $request->status   ?? $planting->status,
         ]);
-
+ 
         return response()->json([
             'message'  => 'Planting updated successfully',
             'planting' => $planting->load(['surface', 'plante']),
         ]);
     }
-
+ 
     // DELETE /api/plantings/{id}
     public function destroy($id)
     {
@@ -184,16 +188,16 @@ class PlantingController extends Controller
                 $q->where('user_id', auth()->id());
             })
             ->findOrFail($id);
-
+ 
         $planting->delete();
-
+ 
         return response()->json(['message' => 'Planting deleted successfully']);
     }
-
+ 
     // =========================================================================
     // AI helpers
     // =========================================================================
-
+ 
     /**
      * Phase A: ask Groq ONLY for the predicted growth duration.
      * Keeping this separate avoids Groq trying to schedule AND count at once.
@@ -209,26 +213,26 @@ class PlantingController extends Controller
         $weatherLine = $weatherSummary['available']
             ? $this->formatWeatherForPrompt($weatherSummary['forecast'])
             : "No forecast — assume typical {$season} conditions.";
-
+ 
         $prompt = <<<PROMPT
 You are an agronomist. Given the data below, return ONLY a JSON object with a single key "duration_days" (integer).
 No explanation, no markdown, no extra keys.
-
+ 
 Plant: {$plantName}
 Soil: {$soilType}
 Season: {$season}
 Weather forecast:
 {$weatherLine}
 Database fallback duration: {$fallbackDays} days
-
+ 
 Example response: {"duration_days": 45}
 PROMPT;
-
+ 
         try {
             $response = $groqService->ask($prompt, 'Respond ONLY with a valid JSON object. No markdown, no text.');
             $clean    = preg_replace('/```json|```/', '', $response);
             $result   = json_decode(trim($clean), true);
-
+ 
             $duration = (int) ($result['duration_days'] ?? 0);
             return $duration > 0 ? $duration : $fallbackDays;
         } catch (\Exception $e) {
@@ -236,7 +240,7 @@ PROMPT;
             return $fallbackDays;
         }
     }
-
+ 
     /**
      * Phase B: generate care recommendations for a specific day range.
      *
@@ -257,7 +261,7 @@ PROMPT;
         // Build the explicit day list so the AI knows exactly what to produce
         $dayList = implode(', ', range($fromDay, $toDay));
         $count   = $toDay - $fromDay + 1;
-
+ 
         $systemPrompt = <<<SYSTEM
 You are an expert agronomist. You generate precise daily care schedules for crops.
 CRITICAL RULES — you MUST follow these exactly:
@@ -266,46 +270,48 @@ CRITICAL RULES — you MUST follow these exactly:
 3. Adapt recommendations to the weather provided for that specific day.
 4. If rain > 5mm: reduce or skip watering and say why.
 5. If temp > 35°C: add heat-stress tip. If temp < 5°C: add frost protection.
-6. Respond ONLY with a valid JSON array. No markdown, no explanation, no extra text.
+6. Always include a fertilizing recommendation appropriate to the plant's growth stage and season.
+7. Respond ONLY with a valid JSON array. No markdown, no explanation, no extra text.
 SYSTEM;
-
+ 
         $prompt = <<<PROMPT
 Plant: {$plantName}
 Soil: {$soilType}
 Season: {$season}
-
+ 
 Weather for days {$fromDay}–{$toDay}:
 {$weatherLines}
-
+ 
 Generate EXACTLY {$count} entries — one per day — for day numbers: {$dayList}.
 Do NOT skip any day. Do NOT merge days. Every day_number must appear exactly once.
-
+ 
 Each entry must follow this structure:
 {
   "day_number": <integer between {$fromDay} and {$toDay}>,
   "weather_summary": "<short weather description for this day>",
   "recommendations": [
     { "type": "watering",     "description": "<specific instruction>" },
+    { "type": "fertilizing",  "description": "<fertilizer type, dosage, and timing>" },
     { "type": "observation",  "description": "<what to check>" }
   ]
 }
-
+ 
 Return ONLY the JSON array. Start with [ and end with ].
 PROMPT;
-
+ 
         try {
             $response = $groqService->ask($prompt, $systemPrompt);
             $clean    = preg_replace('/```json|```/', '', $response);
-
+ 
             // Extract JSON array even if there's stray text
             preg_match('/\[.*\]/s', trim($clean), $matches);
             $days = json_decode($matches[0] ?? '[]', true);
-
+ 
             if (! is_array($days)) {
                 Log::warning("Chunk {$fromDay}-{$toDay} parse failed", ['raw' => $response]);
                 return $this->fallbackChunk($fromDay, $toDay);
             }
-
+ 
             // Verify completeness — fill any missing days with a fallback entry
             $produced = array_column($days, 'day_number');
             for ($d = $fromDay; $d <= $toDay; $d++) {
@@ -314,15 +320,15 @@ PROMPT;
                     $days[] = $this->fallbackDay($d, $season);
                 }
             }
-
+ 
             return $days;
-
+ 
         } catch (\Exception $e) {
             Log::error("Chunk {$fromDay}-{$toDay} generation failed: " . $e->getMessage());
             return $this->fallbackChunk($fromDay, $toDay);
         }
     }
-
+ 
     /**
      * Build a weather text block for a specific day range within the forecast.
      * Days beyond the forecast window get a seasonal note.
@@ -354,7 +360,7 @@ PROMPT;
         }
         return implode("\n", $lines);
     }
-
+ 
     /**
      * Fallback: generate a basic entry for every day in a range without AI.
      */
@@ -366,7 +372,7 @@ PROMPT;
         }
         return $days;
     }
-
+ 
     /**
      * Produce a minimal valid day entry when AI fails or skips.
      */
@@ -377,15 +383,16 @@ PROMPT;
             'weather_summary' => 'No forecast available',
             'recommendations' => [
                 ['type' => 'watering',    'description' => 'Water moderately based on soil moisture.'],
+                ['type' => 'fertilizing', 'description' => 'Apply balanced fertilizer if scheduled; skip if soil is waterlogged.'],
                 ['type' => 'observation', 'description' => 'Check plant health and soil condition.'],
             ],
         ];
     }
-
+ 
     // =========================================================================
     // Weather helpers
     // =========================================================================
-
+ 
     /**
      * Fetch a 5-day / 3-hour forecast from OpenWeatherMap and collapse to daily.
      */
@@ -394,7 +401,7 @@ PROMPT;
         if ($lat === null || $lon === null) {
             return ['available' => false, 'forecast' => []];
         }
-
+ 
         try {
             $apiKey   = config('services.openweathermap.key');
             $response = Http::timeout(8)->get('https://api.openweathermap.org/data/2.5/forecast', [
@@ -403,18 +410,18 @@ PROMPT;
                 'units' => 'metric',
                 'appid' => $apiKey,
             ]);
-
+ 
             if (! $response->ok()) {
                 return ['available' => false, 'forecast' => []];
             }
-
+ 
             $list  = $response->json()['list'] ?? [];
             $byDay = [];
-
+ 
             foreach ($list as $slot) {
                 $date = Carbon::createFromTimestamp($slot['dt'])->toDateString();
                 $hour = Carbon::createFromTimestamp($slot['dt'])->hour;
-
+ 
                 if (! isset($byDay[$date]) || abs($hour - 12) < abs(Carbon::parse($byDay[$date]['_h'])->hour - 12)) {
                     $byDay[$date] = [
                         '_h'        => Carbon::createFromTimestamp($slot['dt'])->toDateTimeString(),
@@ -426,20 +433,20 @@ PROMPT;
                     ];
                 }
             }
-
+ 
             $forecast = array_values(array_map(function ($d) {
                 unset($d['_h']);
                 return $d;
             }, $byDay));
-
+ 
             return ['available' => true, 'forecast' => $forecast];
-
+ 
         } catch (\Exception $e) {
             Log::warning('OWM fetch failed: ' . $e->getMessage());
             return ['available' => false, 'forecast' => []];
         }
     }
-
+ 
     private function formatWeatherForPrompt(array $forecast): string
     {
         $lines = [];
@@ -452,11 +459,11 @@ PROMPT;
         }
         return implode("\n", $lines);
     }
-
+ 
     // =========================================================================
     // Misc helpers
     // =========================================================================
-
+ 
     private function getSeason(Carbon $date): string
     {
         return match (true) {
@@ -466,7 +473,7 @@ PROMPT;
             default                              => 'Winter',
         };
     }
-
+ 
     private function fallbackEndDate(Planting $planting, int $days): void
     {
         $planting->update([

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PlantController;
 use App\Http\Controllers\Api\SurfaceController;
 use App\Http\Controllers\Api\PlantingController;
+use App\Http\Controllers\Api\ProgrammeController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -22,6 +23,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('surfaces', SurfaceController::class);
     Route::apiResource('plantings', PlantingController::class);
+
+    Route::patch('/programmes/{id}/status', [ProgrammeController::class, 'updateStatus']);
 
     Route::prefix('plants')->group(function () {
         Route::get('/',               [PlantController::class, 'index']);

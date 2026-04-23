@@ -26,10 +26,6 @@ class Planting extends Model
         return $this->belongsTo(Plante::class);
     }
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
 
     // Polymorphic — get all programmes for this planting
     public function programmes()
