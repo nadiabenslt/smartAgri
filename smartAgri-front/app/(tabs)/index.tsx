@@ -116,14 +116,6 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-        {/* Header Section */}
-        <View style={styles.header}>
-          <Image
-            source={require('../../assets/images/SmartAgri.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
 
         {/* Weather Widgets */}
         <View style={styles.weatherContainer}>
@@ -180,11 +172,11 @@ export default function HomeScreen() {
           <Text style={styles.aiTitle}>Is there a problem or disease with your plant?</Text>
           <Text style={styles.aiSubtitle}>You can upload a picture for us to analyze.</Text>
           <View style={styles.aiButtonsRow}>
-            <TouchableOpacity style={styles.outlineButton}>
+            <TouchableOpacity style={styles.outlineButton} onPress={() => router.push('/plant-analysis?mode=camera')}>
               <Ionicons name="camera-outline" size={20} color="#48BB78" style={styles.btnIcon} />
               <Text style={styles.outlineButtonText}>Capture Image</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.outlineButton}>
+            <TouchableOpacity style={styles.outlineButton} onPress={() => router.push('/plant-analysis?mode=gallery')}>
               <Ionicons name="cloud-upload-outline" size={20} color="#48BB78" style={styles.btnIcon} />
               <Text style={styles.outlineButtonText}>Upload Image</Text>
             </TouchableOpacity>
@@ -209,40 +201,37 @@ export default function HomeScreen() {
         ) : (
           plantings.map((planting) => {
             const { progress, daysLeft } = calculateProgress(planting.start_date, planting.end_date);
-            const imageUrl = planting.plante?.image
-              ? `http://10.32.96.122:8000/storage/${planting.plante.image}`
-              : 'https://images.unsplash.com/photo-1592841200221-a6898f307baa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
 
             return (
               <TouchableOpacity
                 key={planting.id}
-                style={styles.plantCard}
+                style={styles.compactPlantCard}
                 onPress={() => router.push(`/plant-detail?id=${planting.id}`)}
-                activeOpacity={0.88}
+                activeOpacity={0.8}
               >
-                <Image source={{ uri: imageUrl }} style={styles.plantImage} />
-                <View style={styles.plantInfo}>
-                  <View style={styles.plantTitleRow}>
-                    <Text style={styles.plantTitle}>{planting.plante?.name || 'Unknown Plant'}</Text>
-                    <Text style={styles.plantSubtitle}>{planting.surface?.location || 'Garden Bed'}</Text>
+                <View style={styles.compactCardHeader}>
+                  <View style={styles.compactIconBox}>
+                    <MaterialCommunityIcons name="sprout" size={28} color="#48BB78" />
                   </View>
-
-                  <View style={styles.progressContainer}>
-                    <Text style={styles.progressLabel}>Growth Progress</Text>
-                    <Text style={styles.progressValue}>{progress}%</Text>
-                    <View style={styles.progressBarBg}>
-                      <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
-                    </View>
+                  <View style={styles.compactTextContent}>
+                    <Text style={styles.compactPlantTitle}>{planting.plante?.name || 'Unknown Plant'}</Text>
+                    <Text style={styles.compactPlantLocation}>
+                      <Ionicons name="location-outline" size={14} color="#718096" /> {planting.surface?.location || 'Garden Bed'}
+                    </Text>
                   </View>
-
-                  <View style={styles.harvestRow}>
-                    <MaterialCommunityIcons name="calendar-month-outline" size={16} color="#718096" />
-                    <Text style={styles.harvestText}>{daysLeft} Days to Harvest</Text>
+                  <View style={styles.compactDaysBadge}>
+                    <Text style={styles.compactDaysNumber}>{daysLeft}</Text>
+                    <Text style={styles.compactDaysText}>days</Text>
                   </View>
+                </View>
 
-                  <View style={styles.irrigationButton}>
-                    <Ionicons name="chevron-forward-outline" size={14} color="#166534" />
-                    <Text style={styles.irrigationText}>View Programmes</Text>
+                <View style={styles.compactProgressSection}>
+                  <View style={styles.compactProgressHeader}>
+                    <Text style={styles.compactProgressLabel}>Growth Progress</Text>
+                    <Text style={styles.compactProgressPercent}>{progress}%</Text>
+                  </View>
+                  <View style={styles.compactProgressBarBg}>
+                    <View style={[styles.compactProgressBarFill, { width: `${progress}%` }]} />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -395,91 +384,94 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
   },
-  plantCard: {
+  compactPlantCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    overflow: 'hidden',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#48BB78',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  plantImage: {
-    width: '100%',
-    height: 160,
-  },
-  plantInfo: {
-    padding: 20,
-  },
-  plantTitleRow: {
+  compactCardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  plantTitle: {
-    fontSize: 20,
+  compactIconBox: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  compactTextContent: {
+    flex: 1,
+  },
+  compactPlantTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#2D3748',
-  },
-  plantSubtitle: {
-    fontSize: 14,
-    color: '#718096',
-  },
-  progressContainer: {
-    marginBottom: 16,
-    position: 'relative',
-  },
-  progressLabel: {
-    fontSize: 12,
-    color: '#718096',
-    textAlign: 'left',
     marginBottom: 4,
   },
-  progressValue: {
-    fontSize: 12,
-    color: '#2D3748',
-    fontWeight: '600',
-    position: 'absolute',
-    right: 0,
-    top: 0,
+  compactPlantLocation: {
+    fontSize: 14,
+    color: '#718096',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  progressBarBg: {
+  compactDaysBadge: {
+    backgroundColor: '#FEF08A',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compactDaysNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#CA8A04',
+  },
+  compactDaysText: {
+    fontSize: 10,
+    color: '#CA8A04',
+    textTransform: 'uppercase',
+    fontWeight: '600',
+  },
+  compactProgressSection: {
+    marginTop: 4,
+  },
+  compactProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  compactProgressLabel: {
+    fontSize: 13,
+    color: '#718096',
+    fontWeight: '500',
+  },
+  compactProgressPercent: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#48BB78',
+  },
+  compactProgressBarBg: {
     height: 8,
     backgroundColor: '#E2E8F0',
     borderRadius: 4,
-    flexDirection: 'row',
+    overflow: 'hidden',
   },
-  progressBarFill: {
+  compactProgressBarFill: {
     height: '100%',
     backgroundColor: '#48BB78',
     borderRadius: 4,
-  },
-  harvestRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  harvestText: {
-    color: '#718096',
-    fontSize: 14,
-    marginLeft: 6,
-  },
-  irrigationButton: {
-    backgroundColor: '#DCFCE7',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  irrigationText: {
-    color: '#166534',
-    fontWeight: '600',
-    fontSize: 15,
   },
 });

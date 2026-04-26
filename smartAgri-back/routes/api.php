@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PlantController;
 use App\Http\Controllers\Api\SurfaceController;
 use App\Http\Controllers\Api\PlantingController;
 use App\Http\Controllers\Api\ProgrammeController;
+use App\Http\Controllers\Api\DiseaseController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -26,6 +27,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::patch('/programmes/{id}/status', [ProgrammeController::class, 'updateStatus']);
 
+    Route::post('/disease/analyze', [DiseaseController::class, 'analyze']);
+    Route::get('/diseases', [DiseaseController::class, 'index']);
+    Route::get('/diseases/{id}', [DiseaseController::class, 'show']);
+    Route::post('/diseases/{id}/follow-up', [DiseaseController::class, 'followUp']);
+
     Route::prefix('plants')->group(function () {
         Route::get('/',               [PlantController::class, 'index']);
         Route::post('/step/location', [PlantController::class, 'stepLocation']);
@@ -33,4 +39,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/step/size',     [PlantController::class, 'stepSize']);
         Route::post('/step/plant',    [PlantController::class, 'stepPlant']);
     });
+
+    Route::get('/notifications', [App\Http\Controllers\Api\NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+    
+    Route::post('/fcm-token', [App\Http\Controllers\Api\DeviceController::class, 'updateFcmToken']);
 });

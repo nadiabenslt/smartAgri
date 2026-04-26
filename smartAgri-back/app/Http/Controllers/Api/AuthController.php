@@ -25,6 +25,22 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        \App\Models\Notification::create([
+            'user_id' => $user->id,
+            'title' => 'Bienvenue !',
+            'message' => 'Bienvenue sur SmartAgri, votre assistant agricole intelligent. Commencez par ajouter votre première parcelle et plantez vos cultures !',
+            'is_read' => false,
+        ]);
+
+        if ($user->fcm_token) {
+            $fcmService = app(\App\Services\FCMService::class);
+            $fcmService->sendPushNotification(
+                $user->fcm_token,
+                'Bienvenue !',
+                'Bienvenue sur SmartAgri, votre assistant agricole intelligent. Commencez par ajouter votre première parcelle et plantez vos cultures !'
+            );
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([

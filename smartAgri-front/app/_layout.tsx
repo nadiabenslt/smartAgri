@@ -7,6 +7,8 @@ import { View, ActivityIndicator } from 'react-native';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '../context/AuthContext';
+import { HeaderLogo } from '@/components/HeaderLogo';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -18,16 +20,16 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
 
+  usePushNotifications();
+
   useEffect(() => {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
     if (!user && !inAuthGroup) {
-      // Redirect to the login page.
       router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
-      // Redirect away from the login page.
       router.replace('/(tabs)');
     }
   }, [user, isLoading, segments]);
@@ -42,12 +44,25 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack 
+        screenOptions={{ 
+          headerShown: true,
+          headerTitle: () => <HeaderLogo />,
+          headerBackTitleVisible: false,
+          headerStyle: {
+            backgroundColor: colorScheme === 'dark' ? '#121212' : '#FFFFFF',
+          },
+          headerShadowVisible: true, // Re-enabled shadow
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-        <Stack.Screen name="plant-detail" options={{ headerShown: false }} />
-        <Stack.Screen name="surface-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerTitle: () => <HeaderLogo /> }} />
+        <Stack.Screen name="plant-detail" />
+        <Stack.Screen name="surface-detail" />
+        <Stack.Screen name="plant-analysis" />
+        <Stack.Screen name="disease-detail" />
+        <Stack.Screen name="disease-followup" />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

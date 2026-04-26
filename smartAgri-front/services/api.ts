@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 // NOTE: Replace '192.168.1.100' with your actual local IP address
 // You can find your local IP by running `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
-const LOCAL_IP = '10.32.96.109'; // Updated IP
+const LOCAL_IP = '192.168.3.139'; // Updated IP
 const BASE_URL = Platform.OS === 'web' ? 'http://127.0.0.1:8000/api' : `http://${LOCAL_IP}:8000/api`;
 
 const api = axios.create({
@@ -28,7 +28,8 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {    return Promise.reject(error);
+  (error) => {
+    return Promise.reject(error);
   }
 );
 
